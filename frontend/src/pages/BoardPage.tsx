@@ -77,20 +77,15 @@ const BoardPage: React.FC = () => {
               <span>ルーム: <span className="font-mono font-semibold">{roomId}</span></span>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(roomId);
-                  toast.success('ルームIDをコピーしました');
+                  const currentUrl = window.location.href;
+                  navigator.clipboard.writeText(currentUrl);
+                  toast.success('URLをコピーしました');
                 }}
                 className="btn btn-secondary btn-sm"
-                title="ルームIDをコピー"
+                title="URLをコピー"
               >
                 📋
               </button>
-            </div>
-            <div className={`flex items-center space-x-2 ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="text-sm">
-                {isConnected ? '接続中' : '切断中'}
-              </span>
             </div>
           </div>
           <UsersList />
