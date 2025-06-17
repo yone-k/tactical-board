@@ -26,7 +26,9 @@ class RoomManager {
       };
       
       await redisClient.hSet(`${USER_PREFIX}${socket.id}`, userData as any);
+      await redisClient.expire(`${USER_PREFIX}${socket.id}`, 604800); // 7日間のTTL
       await redisClient.sAdd(`${ROOM_USERS_PREFIX}${roomId}`, socket.id);
+      await redisClient.expire(`${ROOM_USERS_PREFIX}${roomId}`, 604800); // 7日間のTTL
       
       const roomExists = await redisClient.exists(`${ROOM_PREFIX}${roomId}`);
       if (!roomExists) {
@@ -36,6 +38,7 @@ class RoomManager {
           createdBy: socket.id
         };
         await redisClient.hSet(`${ROOM_PREFIX}${roomId}`, roomData as any);
+        await redisClient.expire(`${ROOM_PREFIX}${roomId}`, 604800); // 7日間のTTL
       }
       
       logger.info(`User ${socket.id} joined room ${roomId}`);

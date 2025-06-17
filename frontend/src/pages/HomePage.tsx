@@ -7,14 +7,17 @@ import { useBoardStore } from '../store/useBoardStore';
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { setUserName, setRoomId } = useBoardStore();
-  const [userName, setUserNameInput] = useState('');
+  const [userName, setUserNameInput] = useState(() => {
+    // localStorageから保存されたユーザー名を読み込み
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tactical-board-username') || '';
+    }
+    return '';
+  });
   const [roomIdInput, setRoomIdInput] = useState('');
 
   const createRoom = async () => {
-    if (!userName.trim()) {
-      toast.error('ユーザー名を入力してください');
-      return;
-    }
+    const finalUserName = userName.trim() || '名無し';
 
     try {
       const response = await fetch('/api/rooms/create', {
@@ -29,7 +32,7 @@ const HomePage: React.FC = () => {
       }
 
       const { roomId } = await response.json();
-      setUserName(userName.trim());
+      setUserName(finalUserName);
       setRoomId(roomId);
       navigate(`/room/${roomId}`);
     } catch (error) {
@@ -39,17 +42,13 @@ const HomePage: React.FC = () => {
   };
 
   const joinRoom = () => {
-    if (!userName.trim()) {
-      toast.error('ユーザー名を入力してください');
-      return;
-    }
-
     if (!roomIdInput.trim()) {
       toast.error('ルームIDを入力してください');
       return;
     }
 
-    setUserName(userName.trim());
+    const finalUserName = userName.trim() || '名無し';
+    setUserName(finalUserName);
     setRoomId(roomIdInput.trim());
     navigate(`/room/${roomIdInput.trim()}`);
   };
@@ -91,7 +90,6 @@ const HomePage: React.FC = () => {
             <button
               onClick={createRoom}
               className="w-full btn btn-primary btn-md"
-              disabled={!userName.trim()}
             >
               新しいルームを作成
             </button>
@@ -131,7 +129,7 @@ const HomePage: React.FC = () => {
             <button
               onClick={joinRoom}
               className="w-full btn btn-secondary btn-md"
-              disabled={!userName.trim() || !roomIdInput.trim()}
+              disabled={!roomIdInput.trim()}
             >
               ルームに参加
             </button>

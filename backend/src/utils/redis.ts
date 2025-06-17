@@ -86,6 +86,10 @@ const wrappedClient = {
     await ensureConnection();
     return client.sMembers(key);
   },
+  async expire(key: string, seconds: number) {
+    await ensureConnection();
+    return client.expire(key, seconds);
+  },
   async connect() {
     await ensureConnection();
   },

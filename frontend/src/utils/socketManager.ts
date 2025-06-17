@@ -6,11 +6,21 @@ class SocketManager {
   private currentRoomId: string | null = null;
   private currentUserName: string | null = null;
   private listeners: Map<string, (...args: any[]) => void> = new Map();
+  private hasJoinedRoom: boolean = false;
 
   connect(roomId: string, userName: string) {
-    if (this.currentRoomId === roomId && this.currentUserName === userName && this.socket?.connected) {
-      console.log('Already connected to the same room');
+    console.log(`SocketManager.connect called with roomId: ${roomId}, userName: ${userName}`);
+    console.log(`Current state: roomId=${this.currentRoomId}, userName=${this.currentUserName}, connected=${this.socket?.connected}, hasJoinedRoom=${this.hasJoinedRoom}`);
+    
+    if (this.currentRoomId === roomId && this.currentUserName === userName && this.socket?.connected && this.hasJoinedRoom) {
+      console.log('Already connected to the same room, returning existing socket');
       return this.socket;
+    }
+
+    // Reset join flag when connecting to a different room
+    if (this.currentRoomId !== roomId || this.currentUserName !== userName) {
+      console.log('Room or user changed, resetting join flag');
+      this.hasJoinedRoom = false;
     }
 
     // Only create new socket if we don't have one
@@ -30,11 +40,16 @@ class SocketManager {
     this.currentRoomId = roomId;
     this.currentUserName = userName;
 
-    if (this.socket.connected) {
+    if (this.socket.connected && !this.hasJoinedRoom) {
+      console.log('Socket connected, joining room immediately');
       this.joinRoom();
-    } else {
+    } else if (!this.socket.connected) {
+      console.log('Socket not connected, waiting for connection to join room');
       this.socket.once('connect', () => {
-        this.joinRoom();
+        console.log('Socket connected, joining room');
+        if (!this.hasJoinedRoom) {
+          this.joinRoom();
+        }
       });
     }
 
@@ -47,9 +62,7 @@ class SocketManager {
     this.socket.on('connect', () => {
       console.log('Socket connected via SocketManager');
       toast.success('サーバーに接続しました');
-      if (this.currentRoomId && this.currentUserName) {
-        this.joinRoom();
-      }
+      // joinRoomはここでは呼ばない（重複防止）
     });
 
     this.socket.on('connect_error', (error) => {
@@ -72,19 +85,27 @@ class SocketManager {
   }
 
   private joinRoom() {
-    if (this.socket && this.currentRoomId && this.currentUserName) {
-      console.log(`Joining room ${this.currentRoomId} as ${this.currentUserName}`);
+    console.log(`joinRoom called: socket=${!!this.socket}, roomId=${this.currentRoomId}, userName=${this.currentUserName}, hasJoinedRoom=${this.hasJoinedRoom}`);
+    if (this.socket && this.currentRoomId && this.currentUserName && !this.hasJoinedRoom) {
+      console.log(`Emitting join-room event for room ${this.currentRoomId} as ${this.currentUserName}`);
       this.socket.emit('join-room', { 
         roomId: this.currentRoomId, 
         userName: this.currentUserName 
       });
+      this.hasJoinedRoom = true;
+      console.log('hasJoinedRoom set to true');
+    } else {
+      console.log('joinRoom skipped - conditions not met');
     }
   }
 
   addListener(event: string, listener: (...args: any[]) => void) {
     if (this.socket) {
+      // Remove existing listener for this event first to prevent duplicates
+      this.removeListener(event);
       this.socket.on(event, listener);
       this.listeners.set(event, listener);
+      console.log(`Added listener for event: ${event}`);
     }
   }
 
@@ -94,6 +115,7 @@ class SocketManager {
       if (listener) {
         this.socket.off(event, listener);
         this.listeners.delete(event);
+        console.log(`Removed listener for event: ${event}`);
       }
     }
   }
@@ -117,6 +139,7 @@ class SocketManager {
       this.socket = null;
       this.currentRoomId = null;
       this.currentUserName = null;
+      this.hasJoinedRoom = false;
       this.listeners.clear();
     }
   }

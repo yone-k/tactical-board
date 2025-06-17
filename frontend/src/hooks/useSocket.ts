@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
 import { socketManager } from '../utils/socketManager';
 import toast from 'react-hot-toast';
@@ -7,14 +7,24 @@ export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
   const boardStore = useBoardStore();
   const { roomId, userName } = boardStore;
+  const isSetupRef = useRef(false);
 
   useEffect(() => {
     if (!roomId || !userName) {
+      console.log('useSocket: Missing roomId or userName, skipping setup');
       setIsConnected(false);
+      isSetupRef.current = false;
       return;
     }
 
-    console.log(`useSocket: Setting up for room ${roomId}, user ${userName}`);
+    // 既にセットアップ済みの場合は重複実行を防ぐ
+    const setupKey = `${roomId}-${userName}`;
+    if (isSetupRef.current === setupKey) {
+      console.log(`useSocket: Already setup for ${setupKey}, skipping`);
+      return;
+    }
+
+    console.log(`useSocket: Setting up for room ${roomId}, user ${userName} (useEffect called)`);
     
     // Connect using singleton socket manager
     const socket = socketManager.connect(roomId, userName);
@@ -30,15 +40,20 @@ export const useSocket = () => {
     socketManager.addListener('connect', updateConnectionStatus);
     socketManager.addListener('disconnect', updateConnectionStatus);
     
+    isSetupRef.current = setupKey;
+    
     return () => {
+      console.log(`useSocket: Cleaning up for room ${roomId}, user ${userName}`);
       // Clean up listeners but don't disconnect
       socketManager.removeListener('connect');
       socketManager.removeListener('disconnect');
       cleanupBoardEventListeners();
+      isSetupRef.current = false;
     };
   }, [roomId, userName]);
 
   const setupBoardEventListeners = () => {
+    console.log('setupBoardEventListeners: Setting up all board event listeners');
     // Board state events
     socketManager.addListener('board-state', (boardState) => {
       boardStore.setBoardState(boardState);
@@ -102,11 +117,21 @@ export const useSocket = () => {
     });
 
     socketManager.addListener('user-joined', (user) => {
-      toast.success(`${user.name}が参加しました`);
+      console.log('user-joined event received:', user);
+      // 自分以外のユーザーが参加した場合のみアラート表示
+      const currentUserName = useBoardStore.getState().userName;
+      console.log('Comparing user names:', { userJoined: user.name, currentUser: currentUserName });
+      if (user.name !== currentUserName) {
+        console.log('Showing toast for user joined:', user.name);
+        toast.success(`${user.name}が参加しました`);
+      } else {
+        console.log('Skipping toast for self-join');
+      }
     });
 
     socketManager.addListener('user-left', ({ userId }) => {
-      toast('ユーザーが退出しました');
+      // アラートは表示せず、ユーザーリストの更新のみ
+      console.log(`User left: ${userId}`);
     });
 
     socketManager.addListener('users-update', (users) => {
@@ -121,6 +146,7 @@ export const useSocket = () => {
   };
 
   const cleanupBoardEventListeners = () => {
+    console.log('cleanupBoardEventListeners: Cleaning up all board event listeners');
     const events = [
       'board-state', 'drawing-update', 'player-move', 'player-state-change',
       'stamp-add', 'stamp-remove', 'clear-board', 'user-joined', 'user-left',

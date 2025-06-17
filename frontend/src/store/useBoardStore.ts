@@ -72,7 +72,7 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
   isDrawing: false,
   connectedUsers: [],
   roomId: null,
-  userName: '',
+  userName: typeof window !== 'undefined' ? localStorage.getItem('tactical-board-username') || '' : '',
   
   // Actions
   setSelectedTool: (tool) => set({ selectedTool: tool }),
@@ -80,7 +80,12 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
   setActiveLayer: (layer) => set({ activeLayer: layer }),
   setMapBackground: (background) => set({ mapBackground: background }),
   setRoomId: (roomId) => set({ roomId }),
-  setUserName: (userName) => set({ userName }),
+  setUserName: (userName) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tactical-board-username', userName);
+    }
+    set({ userName });
+  },
   
   // Board actions
   addPlayer: (player) => 
