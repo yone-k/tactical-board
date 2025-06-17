@@ -31,7 +31,11 @@ export const useSocket = () => {
 
     // Create socket connection
     socket = io(window.location.origin, {
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+      timeout: 20000
     });
 
     // Connection event handlers
@@ -43,14 +47,26 @@ export const useSocket = () => {
       socket?.emit('join-room', { roomId, userName });
     });
 
-    socket.on('disconnect', () => {
-      setIsConnected(false);
-      toast.error('サーバーから切断されました');
-    });
-
+    // Global error handler for unhandled socket errors
     socket.on('connect_error', (error) => {
       console.error('Connection error:', error);
       toast.error('接続に失敗しました');
+    });
+
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Disconnected:', reason);
+      setIsConnected(false);
+      if (reason === 'io server disconnect') {
+        toast.error('サーバーから切断されました');
+      } else if (reason === 'io client disconnect') {
+        console.log('Client initiated disconnect');
+      } else {
+        toast.error(`接続が切断されました: ${reason}`);
+      }
     });
 
     // Board state events
@@ -93,7 +109,7 @@ export const useSocket = () => {
 
     socket.on('clear-board', ({ userId }) => {
       clearBoard();
-      toast.info('ボードがクリアされました');
+      toast('ボードがクリアされました');
     });
 
     // User events
@@ -102,7 +118,7 @@ export const useSocket = () => {
     });
 
     socket.on('user-left', ({ userId }) => {
-      toast.info('ユーザーが退出しました');
+      toast('ユーザーが退出しました');
     });
 
     socket.on('users-update', (users) => {
@@ -110,7 +126,9 @@ export const useSocket = () => {
     });
 
     // Error handling
-    socket.on('error', ({ message }) => {
+    socket.on('error', (data) => {
+      console.error('Socket error received:', data);
+      const message = data?.message || 'Unknown error';
       toast.error(message);
     });
 
@@ -150,8 +168,12 @@ export const useSocket = () => {
   };
 
   const emitStampAdd = (stamp: any) => {
-    if (!socket || !roomId) return;
+    if (!socket || !roomId) {
+      console.error('Cannot emit stamp-add: socket or roomId missing', { socket: !!socket, roomId });
+      return;
+    }
     try {
+      console.log('Emitting stamp-add:', { roomId, stamp });
       socket.emit('stamp-add', { roomId, stamp });
     } catch (error) {
       console.error('Error emitting stamp-add:', error);

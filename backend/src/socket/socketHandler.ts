@@ -50,6 +50,25 @@ export default (io: Server): void => {
   io.on('connection', (socket: Socket) => {
     logger.info(`New client connected: ${socket.id}`);
 
+    socket.on('error', (error) => {
+      logger.error(`Socket error for ${socket.id}:`, error);
+    });
+
+    socket.on('disconnect', async (reason) => {
+      logger.info(`Client ${socket.id} disconnected: ${reason}`);
+      try {
+        const rooms = await roomManager.getUserRooms(socket.id);
+        for (const roomId of rooms) {
+          await roomManager.leaveRoom(socket, roomId);
+          const users = await roomManager.getRoomUsers(roomId);
+          socket.to(roomId).emit('user-left', { userId: socket.id });
+          socket.to(roomId).emit('users-update', users);
+        }
+      } catch (error) {
+        logger.error('Error handling disconnect:', error);
+      }
+    });
+
     socket.on('join-room', async ({ roomId, userName }: JoinRoomData) => {
       try {
         const user: User = {
@@ -101,13 +120,32 @@ export default (io: Server): void => {
       }
     });
 
-    socket.on('stamp-add', async ({ roomId, stamp }: StampAddData) => {
+    socket.on('stamp-add', async (data) => {
       try {
+        logger.info(`Stamp add request from ${socket.id}: ${JSON.stringify(data)}`);
+        
+        if (!data || !data.roomId || !data.stamp) {
+          logger.error('Invalid stamp-add data:', data);
+          socket.emit('error', { message: 'Invalid stamp data' });
+          return;
+        }
+
+        const { roomId, stamp } = data;
+        
+        // Validate stamp data
+        if (!stamp.type || !stamp.position || typeof stamp.layer !== 'number') {
+          logger.error('Invalid stamp structure:', stamp);
+          socket.emit('error', { message: 'Invalid stamp structure' });
+          return;
+        }
+
         const stampWithId: Stamp = { ...stamp, id: uuidv4() };
         await boardStateManager.addStamp(roomId, stampWithId);
         io.to(roomId).emit('stamp-add', { userId: socket.id, stamp: stampWithId });
+        logger.info(`Stamp added successfully: ${stampWithId.id}`);
       } catch (error) {
         logger.error('Error adding stamp:', error);
+        socket.emit('error', { message: 'Failed to add stamp' });
       }
     });
 
@@ -133,20 +171,6 @@ export default (io: Server): void => {
       }
     });
 
-    socket.on('disconnect', async () => {
-      try {
-        const rooms = await roomManager.getUserRooms(socket.id);
-        for (const roomId of rooms) {
-          await roomManager.leaveRoom(socket, roomId);
-          const users = await roomManager.getRoomUsers(roomId);
-          socket.to(roomId).emit('user-left', { userId: socket.id });
-          socket.to(roomId).emit('users-update', users);
-        }
-        logger.info(`Client disconnected: ${socket.id}`);
-      } catch (error) {
-        logger.error('Error handling disconnect:', error);
-      }
-    });
   });
 };
 

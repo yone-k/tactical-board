@@ -70,18 +70,20 @@ const Canvas: React.FC = () => {
         if (textContent && textContent.trim()) {
           const stamp = {
             type: 'text' as const,
-            position: { x: pos.x, y: pos.y },
+            position: { x: Math.round(pos.x), y: Math.round(pos.y) },
             layer: activeLayer,
             content: textContent.trim()
           };
+          console.log('Text stamp to emit:', stamp);
           emitStampAdd(stamp);
         }
       } else {
         const stamp = {
           type: selectedTool.type as 'frag' | 'smoke' | 'stun',
-          position: { x: pos.x, y: pos.y },
+          position: { x: Math.round(pos.x), y: Math.round(pos.y) },
           layer: activeLayer
         };
+        console.log('Regular stamp to emit:', stamp);
         emitStampAdd(stamp);
       }
     }
