@@ -63,6 +63,16 @@ export const useSocket = () => {
       }
     });
 
+    socketManager.addListener('drawing-remove', ({ userId, drawingId }) => {
+      try {
+        if (userId !== socketManager.isConnected() && userId) {
+          boardStore.removeDrawing(drawingId);
+        }
+      } catch (error) {
+        console.error('Error handling drawing-remove event:', error);
+      }
+    });
+
     socketManager.addListener('player-move', ({ userId, playerId, position }) => {
       try {
         if (userId !== socketManager.isConnected() && userId) {
@@ -132,7 +142,7 @@ export const useSocket = () => {
 
   const cleanupBoardEventListeners = () => {
     const events = [
-      'board-state', 'drawing-update', 'player-move', 'player-state-change',
+      'board-state', 'drawing-update', 'drawing-remove', 'player-move', 'player-state-change',
       'stamp-add', 'stamp-remove', 'clear-board', 'user-joined', 'user-left',
       'users-update', 'error'
     ];
@@ -147,6 +157,15 @@ export const useSocket = () => {
       socketManager.emit('drawing-update', { roomId, drawingData });
     } catch (error) {
       console.error('Error emitting drawing-update:', error);
+    }
+  };
+
+  const emitDrawingRemove = (drawingId: string) => {
+    if (!socketManager.isConnected() || !roomId) return;
+    try {
+      socketManager.emit('drawing-remove', { roomId, drawingId });
+    } catch (error) {
+      console.error('Error emitting drawing-remove:', error);
     }
   };
 
@@ -228,6 +247,7 @@ export const useSocket = () => {
     isConnected,
     socket: socketManager,
     emitDrawingUpdate,
+    emitDrawingRemove,
     emitPlayerMove,
     emitPlayerStateChange,
     emitStampAdd,

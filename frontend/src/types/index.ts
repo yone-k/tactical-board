@@ -29,6 +29,7 @@ export interface Player {
 }
 
 export interface DrawingData {
+  id?: string;
   type: 'pen' | 'line';
   points: number[];
   color: string;
@@ -63,6 +64,7 @@ export interface Tool {
 export interface SocketEvents {
   'join-room': { roomId: string; userName?: string };
   'drawing-update': { roomId: string; drawingData: DrawingData };
+  'drawing-remove': { roomId: string; drawingId: string };
   'player-move': { roomId: string; playerId: string; position: Position };
   'player-state-change': { roomId: string; playerId: string; state: Partial<Player> };
   'stamp-add': { roomId: string; stamp: Omit<Stamp, 'id'> };

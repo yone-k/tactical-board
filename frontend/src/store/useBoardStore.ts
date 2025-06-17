@@ -22,6 +22,7 @@ interface BoardStore extends BoardState {
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   movePlayer: (playerId: string, position: Position) => void;
   addDrawing: (drawing: DrawingData) => void;
+  removeDrawing: (drawingId: string) => void;
   addStamp: (stamp: Stamp) => void;
   removeStamp: (stampId: string) => void;
   clearBoard: () => void;
@@ -105,8 +106,15 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
       )
     })),
     
-  addDrawing: (drawing) =>
-    set((state) => ({ drawings: [...state.drawings, drawing] })),
+  addDrawing: (drawing) => {
+    const drawingWithId = { ...drawing, id: drawing.id || Date.now().toString() + Math.random().toString(36).substr(2, 9) };
+    set((state) => ({ drawings: [...state.drawings, drawingWithId] }));
+  },
+    
+  removeDrawing: (drawingId) =>
+    set((state) => ({
+      drawings: state.drawings.filter((drawing) => drawing.id !== drawingId)
+    })),
     
   addStamp: (stamp) =>
     set((state) => ({ stamps: [...state.stamps, stamp] })),

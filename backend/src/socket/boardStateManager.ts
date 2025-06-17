@@ -72,6 +72,12 @@ class BoardStateManager {
   async updateDrawing(roomId: string, drawingData: DrawingData): Promise<void> {
     try {
       const state = await this.getBoardState(roomId);
+      
+      // Add ID if not present
+      if (!drawingData.id) {
+        drawingData.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+      }
+      
       state.drawings.push(drawingData);
       
       // Limit drawings to prevent memory issues
@@ -82,6 +88,17 @@ class BoardStateManager {
       await this.saveBoardState(roomId, state);
     } catch (error) {
       logger.error('Error updating drawing:', error);
+      throw error;
+    }
+  }
+
+  async removeDrawing(roomId: string, drawingId: string): Promise<void> {
+    try {
+      const state = await this.getBoardState(roomId);
+      state.drawings = state.drawings.filter(d => d.id !== drawingId);
+      await this.saveBoardState(roomId, state);
+    } catch (error) {
+      logger.error('Error removing drawing:', error);
       throw error;
     }
   }

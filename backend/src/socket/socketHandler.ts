@@ -42,6 +42,11 @@ interface LayerChangeData {
   layer: number;
 }
 
+interface DrawingRemoveData {
+  roomId: string;
+  drawingId: string;
+}
+
 interface ClearBoardData {
   roomId: string;
 }
@@ -99,6 +104,15 @@ export default (io: Server): void => {
         socket.to(roomId).emit('drawing-update', { userId: socket.id, drawingData });
       } catch (error) {
         logger.error('Error updating drawing:', error);
+      }
+    });
+
+    socket.on('drawing-remove', async ({ roomId, drawingId }: DrawingRemoveData) => {
+      try {
+        await boardStateManager.removeDrawing(roomId, drawingId);
+        socket.to(roomId).emit('drawing-remove', { userId: socket.id, drawingId });
+      } catch (error) {
+        logger.error('Error removing drawing:', error);
       }
     });
 

@@ -27,6 +27,7 @@ export interface Player {
 }
 
 export interface DrawingData {
+  id?: string;
   type: 'pen' | 'line';
   points: number[];
   color: string;
@@ -58,6 +59,10 @@ export interface SocketData {
 
 export interface DrawingUpdateData extends SocketData {
   drawingData: DrawingData;
+}
+
+export interface DrawingRemoveData extends SocketData {
+  drawingId: string;
 }
 
 export interface PlayerMoveData extends SocketData {
