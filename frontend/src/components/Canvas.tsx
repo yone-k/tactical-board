@@ -21,7 +21,8 @@ const Canvas: React.FC = () => {
     mapBackground,
     addDrawing,
     movePlayer,
-    addStamp
+    addStamp,
+    setSelectedTool
   } = useBoardStore();
   
   const { emitDrawingUpdate, emitPlayerMove, emitStampAdd } = useSocket();
@@ -57,12 +58,31 @@ const Canvas: React.FC = () => {
   }, []);
 
   const handleMouseDown = (e: any) => {
+    // デフォルトモードの場合は何もしない
+    if (selectedTool.type === 'default') {
+      return;
+    }
+    
     if (selectedTool.type === 'pen' || selectedTool.type === 'eraser') {
       setIsDrawing(true);
-      const pos = e.target.getStage().getPointerPosition();
+      const stage = e.target.getStage();
+      const pos = stage?.getPointerPosition();
+      
+      if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') {
+        console.error('Invalid pointer position for drawing:', pos);
+        setIsDrawing(false);
+        return;
+      }
+      
       setCurrentPath([pos.x, pos.y]);
     } else if (['frag', 'smoke', 'stun', 'text'].includes(selectedTool.type)) {
-      const pos = e.target.getStage().getPointerPosition();
+      const stage = e.target.getStage();
+      const pos = stage?.getPointerPosition();
+      
+      if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') {
+        console.error('Invalid pointer position:', pos);
+        return;
+      }
       
       if (selectedTool.type === 'text') {
         // For text stamps, use the content from toolbar or prompt
@@ -76,6 +96,9 @@ const Canvas: React.FC = () => {
           };
           console.log('Text stamp to emit:', stamp);
           emitStampAdd(stamp);
+          
+          // スタンプ設置後にデフォルトモードに戻す
+          setSelectedTool({ type: 'default' });
         }
       } else {
         const stamp = {
@@ -85,20 +108,29 @@ const Canvas: React.FC = () => {
         };
         console.log('Regular stamp to emit:', stamp);
         emitStampAdd(stamp);
+        
+        // スタンプ設置後にデフォルトモードに戻す
+        setSelectedTool({ type: 'default' });
       }
     }
   };
 
   const handleMouseMove = (e: any) => {
-    if (!isDrawing || (selectedTool.type !== 'pen' && selectedTool.type !== 'eraser')) return;
+    if (!isDrawing || selectedTool.type === 'default' || (selectedTool.type !== 'pen' && selectedTool.type !== 'eraser')) return;
     
     const stage = e.target.getStage();
-    const point = stage.getPointerPosition();
+    const point = stage?.getPointerPosition();
+    
+    if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
+      console.error('Invalid pointer position during move:', point);
+      return;
+    }
+    
     setCurrentPath(prev => [...prev, point.x, point.y]);
   };
 
   const handleMouseUp = () => {
-    if (!isDrawing || (selectedTool.type !== 'pen' && selectedTool.type !== 'eraser')) return;
+    if (!isDrawing || selectedTool.type === 'default' || (selectedTool.type !== 'pen' && selectedTool.type !== 'eraser')) return;
     
     setIsDrawing(false);
     
@@ -134,6 +166,25 @@ const Canvas: React.FC = () => {
   // Players should be visible on all layers
   const filteredPlayers = players;
 
+  // カーソルスタイルを動的に決定
+  const getCursorStyle = () => {
+    switch (selectedTool.type) {
+      case 'default':
+        return 'default';
+      case 'pen':
+        return 'crosshair';
+      case 'eraser':
+        return 'cell';
+      case 'frag':
+      case 'smoke':
+      case 'stun':
+      case 'text':
+        return 'copy';
+      default:
+        return 'default';
+    }
+  };
+
   return (
     <div className="w-full h-full bg-gray-50 overflow-hidden">
       <Stage
@@ -143,6 +194,7 @@ const Canvas: React.FC = () => {
         onMousemove={handleMouseMove}
         onMouseup={handleMouseUp}
         ref={stageRef}
+        style={{ cursor: getCursorStyle() }}
       >
         <Layer>
           {/* Background Map */}
