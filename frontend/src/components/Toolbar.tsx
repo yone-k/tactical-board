@@ -28,6 +28,12 @@ const Toolbar: React.FC = () => {
   ];
 
   const handleToolSelect = (toolType: string) => {
+    // 選択中のツールを再度押したらデフォルトモードに戻す
+    if (selectedTool.type === toolType) {
+      setSelectedTool({ type: 'default' });
+      return;
+    }
+
     if (toolType === 'pen') {
       setSelectedTool({
         type: 'pen',
