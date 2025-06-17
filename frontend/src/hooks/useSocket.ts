@@ -123,19 +123,39 @@ export const useSocket = () => {
 
   // Socket event emitters
   const emitDrawingUpdate = (drawingData: any) => {
-    socket?.emit('drawing-update', { roomId, drawingData });
+    if (!socket || !roomId) return;
+    try {
+      socket.emit('drawing-update', { roomId, drawingData });
+    } catch (error) {
+      console.error('Error emitting drawing-update:', error);
+    }
   };
 
   const emitPlayerMove = (playerId: string, position: any) => {
-    socket?.emit('player-move', { roomId, playerId, position });
+    if (!socket || !roomId) return;
+    try {
+      socket.emit('player-move', { roomId, playerId, position });
+    } catch (error) {
+      console.error('Error emitting player-move:', error);
+    }
   };
 
   const emitPlayerStateChange = (playerId: string, state: any) => {
-    socket?.emit('player-state-change', { roomId, playerId, state });
+    if (!socket || !roomId) return;
+    try {
+      socket.emit('player-state-change', { roomId, playerId, state });
+    } catch (error) {
+      console.error('Error emitting player-state-change:', error);
+    }
   };
 
   const emitStampAdd = (stamp: any) => {
-    socket?.emit('stamp-add', { roomId, stamp });
+    if (!socket || !roomId) return;
+    try {
+      socket.emit('stamp-add', { roomId, stamp });
+    } catch (error) {
+      console.error('Error emitting stamp-add:', error);
+    }
   };
 
   const emitStampRemove = (stampId: string) => {

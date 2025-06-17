@@ -31,6 +31,19 @@ const Canvas: React.FC = () => {
     height: window.innerHeight - 120 // Account for toolbar and header
   });
 
+  const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (mapBackground) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => setMapImage(img);
+      img.src = mapBackground;
+    } else {
+      setMapImage(null);
+    }
+  }, [mapBackground]);
+
   useEffect(() => {
     const handleResize = () => {
       setStageSize({
@@ -44,25 +57,38 @@ const Canvas: React.FC = () => {
   }, []);
 
   const handleMouseDown = (e: any) => {
-    if (selectedTool.type === 'pen') {
+    if (selectedTool.type === 'pen' || selectedTool.type === 'eraser') {
       setIsDrawing(true);
       const pos = e.target.getStage().getPointerPosition();
       setCurrentPath([pos.x, pos.y]);
-    } else if (['frag', 'smoke', 'stun'].includes(selectedTool.type)) {
+    } else if (['frag', 'smoke', 'stun', 'text'].includes(selectedTool.type)) {
       const pos = e.target.getStage().getPointerPosition();
-      const stamp = {
-        type: selectedTool.type as 'frag' | 'smoke' | 'stun',
-        position: { x: pos.x, y: pos.y },
-        layer: activeLayer
-      };
       
-      // Note: We need to wait for server to assign ID, so we don't add to local store here
-      emitStampAdd(stamp);
+      if (selectedTool.type === 'text') {
+        // For text stamps, use the content from toolbar or prompt
+        const textContent = selectedTool.content || prompt('テキストを入力してください:');
+        if (textContent && textContent.trim()) {
+          const stamp = {
+            type: 'text' as const,
+            position: { x: pos.x, y: pos.y },
+            layer: activeLayer,
+            content: textContent.trim()
+          };
+          emitStampAdd(stamp);
+        }
+      } else {
+        const stamp = {
+          type: selectedTool.type as 'frag' | 'smoke' | 'stun',
+          position: { x: pos.x, y: pos.y },
+          layer: activeLayer
+        };
+        emitStampAdd(stamp);
+      }
     }
   };
 
   const handleMouseMove = (e: any) => {
-    if (!isDrawing || selectedTool.type !== 'pen') return;
+    if (!isDrawing || (selectedTool.type !== 'pen' && selectedTool.type !== 'eraser')) return;
     
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
@@ -70,16 +96,16 @@ const Canvas: React.FC = () => {
   };
 
   const handleMouseUp = () => {
-    if (!isDrawing || selectedTool.type !== 'pen') return;
+    if (!isDrawing || (selectedTool.type !== 'pen' && selectedTool.type !== 'eraser')) return;
     
     setIsDrawing(false);
     
     if (currentPath.length > 2) {
       const drawingData: DrawingData = {
-        type: 'pen',
+        type: selectedTool.type === 'eraser' ? 'pen' : 'pen',
         points: currentPath,
-        color: selectedTool.color || '#000000',
-        strokeWidth: selectedTool.strokeWidth || 2,
+        color: selectedTool.type === 'eraser' ? '#FFFFFF' : (selectedTool.color || '#000000'),
+        strokeWidth: selectedTool.type === 'eraser' ? 20 : (selectedTool.strokeWidth || 2),
         layer: activeLayer
       };
       
@@ -103,7 +129,8 @@ const Canvas: React.FC = () => {
 
   const filteredDrawings = drawings.filter(d => d.layer === activeLayer);
   const filteredStamps = stamps.filter(s => s.layer === activeLayer);
-  const filteredPlayers = players.filter(p => p.layer === activeLayer);
+  // Players should be visible on all layers
+  const filteredPlayers = players;
 
   return (
     <div className="w-full h-full bg-gray-50 overflow-hidden">
@@ -117,9 +144,9 @@ const Canvas: React.FC = () => {
       >
         <Layer>
           {/* Background Map */}
-          {mapBackground && (
+          {mapBackground && mapImage && (
             <KonvaImage
-              image={undefined} // Will be implemented with proper image loading
+              image={mapImage}
               width={stageSize.width}
               height={stageSize.height}
             />
@@ -142,8 +169,8 @@ const Canvas: React.FC = () => {
           {isDrawing && currentPath.length > 2 && (
             <Line
               points={currentPath}
-              stroke={selectedTool.color || '#000000'}
-              strokeWidth={selectedTool.strokeWidth || 2}
+              stroke={selectedTool.type === 'eraser' ? '#FFFFFF' : (selectedTool.color || '#000000')}
+              strokeWidth={selectedTool.type === 'eraser' ? 20 : (selectedTool.strokeWidth || 2)}
               tension={0.5}
               lineCap="round"
               globalCompositeOperation="source-over"

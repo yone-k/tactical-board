@@ -11,7 +11,8 @@ const Toolbar: React.FC = () => {
     selectedTool,
     activeLayer,
     setSelectedTool,
-    setActiveLayer
+    setActiveLayer,
+    setMapBackground
   } = useBoardStore();
   
   const { emitClearBoard, emitStampAdd } = useSocket();
@@ -43,27 +44,44 @@ const Toolbar: React.FC = () => {
   };
 
   const handleColorSelect = (color: PenColor) => {
-    if (selectedTool.type === 'pen') {
-      setSelectedTool({
-        ...selectedTool,
-        color
-      });
-    }
+    // Always switch to pen tool when selecting color
+    setSelectedTool({
+      type: 'pen',
+      color,
+      strokeWidth: selectedTool.strokeWidth || 2
+    });
   };
 
   const handleAddText = () => {
     if (textInput.trim()) {
-      setSelectedTool({ type: 'text' });
+      // Set tool to text mode, but don't clear the input yet - it will be used in Canvas
+      setSelectedTool({ type: 'text', content: textInput.trim() });
       setShowTextInput(false);
       setTextInput('');
     }
   };
 
-  const handleMapUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMapUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // TODO: Implement map upload
-      console.log('Map upload:', file);
+      try {
+        const formData = new FormData();
+        formData.append('map', file);
+        
+        const response = await fetch('/api/maps/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          setMapBackground(result.url);
+        } else {
+          console.error('Failed to upload map');
+        }
+      } catch (error) {
+        console.error('Error uploading map:', error);
+      }
     }
   };
 

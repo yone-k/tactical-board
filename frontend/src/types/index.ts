@@ -57,6 +57,7 @@ export interface Tool {
   type: 'pen' | 'eraser' | 'frag' | 'smoke' | 'stun' | 'custom' | 'text';
   color?: string;
   strokeWidth?: number;
+  content?: string;
 }
 
 export interface SocketEvents {
