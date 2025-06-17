@@ -44,12 +44,12 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/rooms', roomsRouter);
 app.use('/api/maps', mapsRouter);
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Error handling middleware
-app.use((error: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((error: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Unhandled error:', error);
   res.status(500).json({ error: 'Internal server error' });
 });

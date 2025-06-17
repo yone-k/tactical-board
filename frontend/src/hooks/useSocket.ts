@@ -1,200 +1,223 @@
 import { useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { useBoardStore } from '../store/useBoardStore';
+import { socketManager } from '../utils/socketManager';
 import toast from 'react-hot-toast';
-
-let socket: Socket | null = null;
 
 export const useSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
-  const { 
-    roomId, 
-    userName, 
-    setBoardState, 
-    addDrawing, 
-    movePlayer, 
-    updatePlayer, 
-    addStamp, 
-    removeStamp, 
-    clearBoard,
-    setConnectedUsers
-  } = useBoardStore();
+  const boardStore = useBoardStore();
+  const { roomId, userName } = boardStore;
 
   useEffect(() => {
-    if (!roomId || !userName) return;
-
-    // Cleanup existing socket if any
-    if (socket) {
-      socket.disconnect();
-      socket = null;
+    if (!roomId || !userName) {
+      setIsConnected(false);
+      return;
     }
 
-    // Create socket connection
-    socket = io(window.location.origin, {
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-      timeout: 20000
-    });
+    console.log(`useSocket: Setting up for room ${roomId}, user ${userName}`);
+    
+    // Connect using singleton socket manager
+    const socket = socketManager.connect(roomId, userName);
+    
+    // Set up event listeners
+    setupBoardEventListeners();
+    
+    // Update connection status
+    setIsConnected(socketManager.isConnected());
+    
+    // Listen for connection status changes
+    const updateConnectionStatus = () => setIsConnected(socketManager.isConnected());
+    socketManager.addListener('connect', updateConnectionStatus);
+    socketManager.addListener('disconnect', updateConnectionStatus);
+    
+    return () => {
+      // Clean up listeners but don't disconnect
+      socketManager.removeListener('connect');
+      socketManager.removeListener('disconnect');
+      cleanupBoardEventListeners();
+    };
+  }, [roomId, userName]);
 
-    // Connection event handlers
-    socket.on('connect', () => {
-      setIsConnected(true);
-      toast.success('サーバーに接続しました');
-      
-      // Join room
-      socket?.emit('join-room', { roomId, userName });
-    });
-
-    // Global error handler for unhandled socket errors
-    socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-      toast.error('接続に失敗しました');
-    });
-
-    socket.on('error', (error) => {
-      console.error('Socket error:', error);
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log('Disconnected:', reason);
-      setIsConnected(false);
-      if (reason === 'io server disconnect') {
-        toast.error('サーバーから切断されました');
-      } else if (reason === 'io client disconnect') {
-        console.log('Client initiated disconnect');
-      } else {
-        toast.error(`接続が切断されました: ${reason}`);
-      }
-    });
-
+  const setupBoardEventListeners = () => {
     // Board state events
-    socket.on('board-state', (boardState) => {
-      setBoardState(boardState);
+    socketManager.addListener('board-state', (boardState) => {
+      boardStore.setBoardState(boardState);
     });
 
-    socket.on('drawing-update', ({ userId, drawingData }) => {
-      // Only add if it's from another user
-      if (userId !== socket.id) {
-        addDrawing(drawingData);
+    socketManager.addListener('drawing-update', ({ userId, drawingData }) => {
+      try {
+        if (userId !== socketManager.isConnected() && userId) {
+          boardStore.addDrawing(drawingData);
+        }
+      } catch (error) {
+        console.error('Error handling drawing-update event:', error);
       }
     });
 
-    socket.on('player-move', ({ userId, playerId, position }) => {
-      // Only update if it's from another user
-      if (userId !== socket.id) {
-        movePlayer(playerId, position);
+    socketManager.addListener('player-move', ({ userId, playerId, position }) => {
+      try {
+        if (userId !== socketManager.isConnected() && userId) {
+          boardStore.movePlayer(playerId, position);
+        }
+      } catch (error) {
+        console.error('Error handling player-move event:', error);
       }
     });
 
-    socket.on('player-state-change', ({ userId, playerId, state }) => {
-      // Only update if it's from another user
-      if (userId !== socket.id) {
-        updatePlayer(playerId, state);
+    socketManager.addListener('player-state-change', ({ userId, playerId, state }) => {
+      try {
+        if (userId !== socketManager.isConnected() && userId) {
+          boardStore.updatePlayer(playerId, state);
+        }
+      } catch (error) {
+        console.error('Error handling player-state-change event:', error);
       }
     });
 
-    socket.on('stamp-add', ({ userId, stamp }) => {
-      // Always add stamps since server assigns ID
-      addStamp(stamp);
-    });
-
-    socket.on('stamp-remove', ({ userId, stampId }) => {
-      // Only remove if it's from another user
-      if (userId !== socket.id) {
-        removeStamp(stampId);
+    socketManager.addListener('stamp-add', ({ userId, stamp }) => {
+      try {
+        console.log('Received stamp-add event:', { userId, stamp });
+        
+        if (!stamp || !stamp.id || !stamp.type || !stamp.position) {
+          console.error('Invalid stamp received from server:', stamp);
+          return;
+        }
+        
+        boardStore.addStamp(stamp);
+        console.log('Stamp added to store successfully');
+      } catch (error) {
+        console.error('Error handling stamp-add event:', error);
       }
     });
 
-    socket.on('clear-board', ({ userId }) => {
-      clearBoard();
+    socketManager.addListener('stamp-remove', ({ userId, stampId }) => {
+      if (userId !== socketManager.isConnected() && userId) {
+        boardStore.removeStamp(stampId);
+      }
+    });
+
+    socketManager.addListener('clear-board', ({ userId }) => {
+      boardStore.clearBoard();
       toast('ボードがクリアされました');
     });
 
-    // User events
-    socket.on('user-joined', (user) => {
+    socketManager.addListener('user-joined', (user) => {
       toast.success(`${user.name}が参加しました`);
     });
 
-    socket.on('user-left', ({ userId }) => {
+    socketManager.addListener('user-left', ({ userId }) => {
       toast('ユーザーが退出しました');
     });
 
-    socket.on('users-update', (users) => {
-      setConnectedUsers(users.map((u: any) => u.name));
+    socketManager.addListener('users-update', (users) => {
+      boardStore.setConnectedUsers(users.map((u: any) => u.name));
     });
 
-    // Error handling
-    socket.on('error', (data) => {
+    socketManager.addListener('error', (data) => {
       console.error('Socket error received:', data);
       const message = data?.message || 'Unknown error';
       toast.error(message);
     });
+  };
 
-    return () => {
-      socket?.disconnect();
-      socket = null;
-      setIsConnected(false);
-    };
-  }, [roomId, userName]);
+  const cleanupBoardEventListeners = () => {
+    const events = [
+      'board-state', 'drawing-update', 'player-move', 'player-state-change',
+      'stamp-add', 'stamp-remove', 'clear-board', 'user-joined', 'user-left',
+      'users-update', 'error'
+    ];
+    
+    events.forEach(event => socketManager.removeListener(event));
+  };
 
   // Socket event emitters
   const emitDrawingUpdate = (drawingData: any) => {
-    if (!socket || !roomId) return;
+    if (!socketManager.isConnected() || !roomId) return;
     try {
-      socket.emit('drawing-update', { roomId, drawingData });
+      socketManager.emit('drawing-update', { roomId, drawingData });
     } catch (error) {
       console.error('Error emitting drawing-update:', error);
     }
   };
 
   const emitPlayerMove = (playerId: string, position: any) => {
-    if (!socket || !roomId) return;
+    if (!socketManager.isConnected() || !roomId) return;
     try {
-      socket.emit('player-move', { roomId, playerId, position });
+      socketManager.emit('player-move', { roomId, playerId, position });
     } catch (error) {
       console.error('Error emitting player-move:', error);
     }
   };
 
   const emitPlayerStateChange = (playerId: string, state: any) => {
-    if (!socket || !roomId) return;
+    if (!socketManager.isConnected() || !roomId) return;
     try {
-      socket.emit('player-state-change', { roomId, playerId, state });
+      socketManager.emit('player-state-change', { roomId, playerId, state });
     } catch (error) {
       console.error('Error emitting player-state-change:', error);
     }
   };
 
   const emitStampAdd = (stamp: any) => {
-    if (!socket || !roomId) {
-      console.error('Cannot emit stamp-add: socket or roomId missing', { socket: !!socket, roomId });
+    if (!socketManager.isConnected() || !roomId) {
+      console.error('Cannot emit stamp-add: socket or roomId missing', { 
+        connected: socketManager.isConnected(), 
+        roomId 
+      });
       return;
     }
+    
+    // Validate stamp data before sending
+    if (!stamp || !stamp.type || !stamp.position || typeof stamp.layer !== 'number') {
+      console.error('Invalid stamp data:', stamp);
+      toast.error('無効なスタンプデータです');
+      return;
+    }
+    
+    if (typeof stamp.position.x !== 'number' || typeof stamp.position.y !== 'number' || 
+        isNaN(stamp.position.x) || isNaN(stamp.position.y) ||
+        !isFinite(stamp.position.x) || !isFinite(stamp.position.y)) {
+      console.error('Invalid position data:', stamp.position);
+      toast.error('無効な位置データです');
+      return;
+    }
+    
+    if (typeof stamp.layer !== 'number' || isNaN(stamp.layer) || stamp.layer < 0 || stamp.layer > 4) {
+      console.error('Invalid layer data:', stamp.layer);
+      toast.error('無効なレイヤーデータです');
+      return;
+    }
+    
     try {
       console.log('Emitting stamp-add:', { roomId, stamp });
-      socket.emit('stamp-add', { roomId, stamp });
+      socketManager.emit('stamp-add', { roomId, stamp });
     } catch (error) {
       console.error('Error emitting stamp-add:', error);
+      toast.error('スタンプの送信に失敗しました');
     }
   };
 
   const emitStampRemove = (stampId: string) => {
-    socket?.emit('stamp-remove', { roomId, stampId });
+    if (socketManager.isConnected() && roomId) {
+      socketManager.emit('stamp-remove', { roomId, stampId });
+    }
   };
 
   const emitLayerChange = (layer: number) => {
-    socket?.emit('layer-change', { roomId, layer });
+    if (socketManager.isConnected() && roomId) {
+      socketManager.emit('layer-change', { roomId, layer });
+    }
   };
 
   const emitClearBoard = () => {
-    socket?.emit('clear-board', { roomId });
+    if (socketManager.isConnected() && roomId) {
+      socketManager.emit('clear-board', { roomId });
+    }
   };
 
   return {
     isConnected,
-    socket,
+    socket: socketManager,
     emitDrawingUpdate,
     emitPlayerMove,
     emitPlayerStateChange,

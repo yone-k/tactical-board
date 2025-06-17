@@ -121,6 +121,7 @@ class BoardStateManager {
 
   async addStamp(roomId: string, stamp: Stamp): Promise<void> {
     try {
+      logger.info(`Adding stamp to room ${roomId}: ${JSON.stringify(stamp)}`);
       const state = await this.getBoardState(roomId);
       state.stamps.push(stamp);
       
@@ -130,9 +131,10 @@ class BoardStateManager {
       }
       
       await this.saveBoardState(roomId, state);
+      logger.info(`Stamp added successfully to room ${roomId}`);
     } catch (error) {
-      logger.error('Error adding stamp:', error);
-      throw error;
+      logger.error(`Error adding stamp to room ${roomId}:`, error);
+      throw new Error(`Failed to add stamp: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

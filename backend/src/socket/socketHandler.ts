@@ -139,10 +139,33 @@ export default (io: Server): void => {
           return;
         }
 
+        // Validate position data
+        if (typeof stamp.position.x !== 'number' || typeof stamp.position.y !== 'number' ||
+            isNaN(stamp.position.x) || isNaN(stamp.position.y) ||
+            !isFinite(stamp.position.x) || !isFinite(stamp.position.y)) {
+          logger.error('Invalid position data:', stamp.position);
+          socket.emit('error', { message: 'Invalid position data' });
+          return;
+        }
+        
+        // Validate layer data
+        if (typeof stamp.layer !== 'number' || isNaN(stamp.layer) || stamp.layer < 0 || stamp.layer > 4) {
+          logger.error('Invalid layer data:', stamp.layer);
+          socket.emit('error', { message: 'Invalid layer data' });
+          return;
+        }
+
         const stampWithId: Stamp = { ...stamp, id: uuidv4() };
-        await boardStateManager.addStamp(roomId, stampWithId);
-        io.to(roomId).emit('stamp-add', { userId: socket.id, stamp: stampWithId });
-        logger.info(`Stamp added successfully: ${stampWithId.id}`);
+        
+        try {
+          await boardStateManager.addStamp(roomId, stampWithId);
+          io.to(roomId).emit('stamp-add', { userId: socket.id, stamp: stampWithId });
+          logger.info(`Stamp added successfully: ${stampWithId.id}`);
+        } catch (stateError) {
+          logger.error('BoardStateManager error adding stamp:', stateError);
+          socket.emit('error', { message: 'Failed to save stamp to state' });
+          return;
+        }
       } catch (error) {
         logger.error('Error adding stamp:', error);
         socket.emit('error', { message: 'Failed to add stamp' });
