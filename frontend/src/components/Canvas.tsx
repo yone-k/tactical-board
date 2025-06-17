@@ -94,7 +94,6 @@ const Canvas: React.FC = () => {
             layer: activeLayer,
             content: textContent.trim()
           };
-          console.log('Text stamp to emit:', stamp);
           emitStampAdd(stamp);
           
           // スタンプ設置後にデフォルトモードに戻す
@@ -106,7 +105,6 @@ const Canvas: React.FC = () => {
           position: { x: Math.round(pos.x), y: Math.round(pos.y) },
           layer: activeLayer
         };
-        console.log('Regular stamp to emit:', stamp);
         emitStampAdd(stamp);
         
         // スタンプ設置後にデフォルトモードに戻す

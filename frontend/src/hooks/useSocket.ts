@@ -11,7 +11,6 @@ export const useSocket = () => {
 
   useEffect(() => {
     if (!roomId || !userName) {
-      console.log('useSocket: Missing roomId or userName, skipping setup');
       setIsConnected(false);
       isSetupRef.current = false;
       return;
@@ -20,11 +19,8 @@ export const useSocket = () => {
     // 既にセットアップ済みの場合は重複実行を防ぐ
     const setupKey = `${roomId}-${userName}`;
     if (isSetupRef.current === setupKey) {
-      console.log(`useSocket: Already setup for ${setupKey}, skipping`);
       return;
     }
-
-    console.log(`useSocket: Setting up for room ${roomId}, user ${userName} (useEffect called)`);
     
     // Connect using singleton socket manager
     const socket = socketManager.connect(roomId, userName);
@@ -43,7 +39,6 @@ export const useSocket = () => {
     isSetupRef.current = setupKey;
     
     return () => {
-      console.log(`useSocket: Cleaning up for room ${roomId}, user ${userName}`);
       // Clean up listeners but don't disconnect
       socketManager.removeListener('connect');
       socketManager.removeListener('disconnect');
@@ -53,7 +48,6 @@ export const useSocket = () => {
   }, [roomId, userName]);
 
   const setupBoardEventListeners = () => {
-    console.log('setupBoardEventListeners: Setting up all board event listeners');
     // Board state events
     socketManager.addListener('board-state', (boardState) => {
       boardStore.setBoardState(boardState);
@@ -91,15 +85,12 @@ export const useSocket = () => {
 
     socketManager.addListener('stamp-add', ({ userId, stamp }) => {
       try {
-        console.log('Received stamp-add event:', { userId, stamp });
-        
         if (!stamp || !stamp.id || !stamp.type || !stamp.position) {
           console.error('Invalid stamp received from server:', stamp);
           return;
         }
         
         boardStore.addStamp(stamp);
-        console.log('Stamp added to store successfully');
       } catch (error) {
         console.error('Error handling stamp-add event:', error);
       }
@@ -117,21 +108,15 @@ export const useSocket = () => {
     });
 
     socketManager.addListener('user-joined', (user) => {
-      console.log('user-joined event received:', user);
       // 自分以外のユーザーが参加した場合のみアラート表示
       const currentUserName = useBoardStore.getState().userName;
-      console.log('Comparing user names:', { userJoined: user.name, currentUser: currentUserName });
       if (user.name !== currentUserName) {
-        console.log('Showing toast for user joined:', user.name);
         toast.success(`${user.name}が参加しました`);
-      } else {
-        console.log('Skipping toast for self-join');
       }
     });
 
     socketManager.addListener('user-left', ({ userId }) => {
       // アラートは表示せず、ユーザーリストの更新のみ
-      console.log(`User left: ${userId}`);
     });
 
     socketManager.addListener('users-update', (users) => {
@@ -146,7 +131,6 @@ export const useSocket = () => {
   };
 
   const cleanupBoardEventListeners = () => {
-    console.log('cleanupBoardEventListeners: Cleaning up all board event listeners');
     const events = [
       'board-state', 'drawing-update', 'player-move', 'player-state-change',
       'stamp-add', 'stamp-remove', 'clear-board', 'user-joined', 'user-left',
@@ -215,7 +199,6 @@ export const useSocket = () => {
     }
     
     try {
-      console.log('Emitting stamp-add:', { roomId, stamp });
       socketManager.emit('stamp-add', { roomId, stamp });
     } catch (error) {
       console.error('Error emitting stamp-add:', error);
