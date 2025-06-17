@@ -54,7 +54,7 @@ export interface BoardState {
 }
 
 export interface Tool {
-  type: 'pen' | 'eraser' | 'frag' | 'smoke' | 'stun' | 'custom' | 'text';
+  type: 'default' | 'pen' | 'eraser' | 'frag' | 'smoke' | 'stun' | 'custom' | 'text';
   color?: string;
   strokeWidth?: number;
   content?: string;

@@ -68,7 +68,7 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
   mapBackground: undefined,
   
   // Initial UI state
-  selectedTool: { type: 'pen', color: '#FFFF00', strokeWidth: 2 },
+  selectedTool: { type: 'default' },
   isDrawing: false,
   connectedUsers: [],
   roomId: null,
