@@ -24,6 +24,7 @@ interface BoardStore extends BoardState {
   addDrawing: (drawing: DrawingData) => void;
   removeDrawing: (drawingId: string) => void;
   addStamp: (stamp: Stamp) => void;
+  moveStamp: (stampId: string, position: Position) => void;
   removeStamp: (stampId: string) => void;
   clearBoard: () => void;
   setBoardState: (state: BoardState) => void;
@@ -118,6 +119,13 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
     
   addStamp: (stamp) =>
     set((state) => ({ stamps: [...state.stamps, stamp] })),
+    
+  moveStamp: (stampId, position) =>
+    set((state) => ({
+      stamps: state.stamps.map((stamp) =>
+        stamp.id === stampId ? { ...stamp, position } : stamp
+      )
+    })),
     
   removeStamp: (stampId) =>
     set((state) => ({

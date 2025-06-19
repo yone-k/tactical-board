@@ -1,18 +1,33 @@
 import React from 'react';
 import { Group, Circle, Text, Rect } from 'react-konva';
-import { Stamp } from '../types';
+import { Stamp, Position } from '../types';
 import { useSocket } from '../hooks/useSocket';
+import { useBoardStore } from '../store/useBoardStore';
 
 interface StampComponentProps {
   stamp: Stamp;
 }
 
 const StampComponent: React.FC<StampComponentProps> = ({ stamp }) => {
-  const { emitStampRemove } = useSocket();
+  const { emitStampRemove, emitStampMove } = useSocket();
+  const { moveStamp } = useBoardStore();
 
   const handleRightClick = (e: any) => {
     e.evt.preventDefault();
     emitStampRemove(stamp.id);
+  };
+
+  const handleDragEnd = (e: any) => {
+    const newPosition: Position = {
+      x: Math.round(e.target.x()),
+      y: Math.round(e.target.y())
+    };
+    
+    // Update local state immediately
+    moveStamp(stamp.id, newPosition);
+    
+    // Then emit to other users
+    emitStampMove(stamp.id, newPosition);
   };
 
   const getStampContent = () => {
@@ -36,6 +51,8 @@ const StampComponent: React.FC<StampComponentProps> = ({ stamp }) => {
     <Group
       x={stamp.position.x}
       y={stamp.position.y}
+      draggable
+      onDragEnd={handleDragEnd}
       onContextMenu={handleRightClick}
     >
       {stamp.type === 'text' ? (

@@ -155,6 +155,21 @@ class BoardStateManager {
     }
   }
 
+  async moveStamp(roomId: string, stampId: string, position: Position): Promise<void> {
+    try {
+      const state = await this.getBoardState(roomId);
+      const stamp = state.stamps.find(s => s.id === stampId);
+      
+      if (stamp) {
+        stamp.position = position;
+        await this.saveBoardState(roomId, state);
+      }
+    } catch (error) {
+      logger.error('Error moving stamp:', error);
+      throw error;
+    }
+  }
+
   async removeStamp(roomId: string, stampId: string): Promise<void> {
     try {
       const state = await this.getBoardState(roomId);

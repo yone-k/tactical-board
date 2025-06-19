@@ -68,6 +68,7 @@ export interface SocketEvents {
   'player-move': { roomId: string; playerId: string; position: Position };
   'player-state-change': { roomId: string; playerId: string; state: Partial<Player> };
   'stamp-add': { roomId: string; stamp: Omit<Stamp, 'id'> };
+  'stamp-move': { roomId: string; stampId: string; position: Position };
   'stamp-remove': { roomId: string; stampId: string };
   'layer-change': { roomId: string; layer: number };
   'clear-board': { roomId: string };

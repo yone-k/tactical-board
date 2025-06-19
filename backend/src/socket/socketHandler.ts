@@ -32,6 +32,12 @@ interface StampAddData {
   stamp: Omit<Stamp, 'id'>;
 }
 
+interface StampMoveData {
+  roomId: string;
+  stampId: string;
+  position: Position;
+}
+
 interface StampRemoveData {
   roomId: string;
   stampId: string;
@@ -183,6 +189,15 @@ export default (io: Server): void => {
       } catch (error) {
         logger.error('Error adding stamp:', error);
         socket.emit('error', { message: 'Failed to add stamp' });
+      }
+    });
+
+    socket.on('stamp-move', async ({ roomId, stampId, position }: StampMoveData) => {
+      try {
+        await boardStateManager.moveStamp(roomId, stampId, position);
+        socket.to(roomId).emit('stamp-move', { userId: socket.id, stampId, position });
+      } catch (error) {
+        logger.error('Error moving stamp:', error);
       }
     });
 

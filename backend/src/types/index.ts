@@ -79,6 +79,11 @@ export interface StampData extends SocketData {
   stamp: Stamp;
 }
 
+export interface StampMoveData extends SocketData {
+  stampId: string;
+  position: Position;
+}
+
 export interface LayerChangeData extends SocketData {
   layer: number;
 }

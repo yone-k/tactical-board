@@ -106,6 +106,16 @@ export const useSocket = () => {
       }
     });
 
+    socketManager.addListener('stamp-move', ({ userId, stampId, position }) => {
+      try {
+        if (userId !== socketManager.isConnected() && userId) {
+          boardStore.moveStamp(stampId, position);
+        }
+      } catch (error) {
+        console.error('Error handling stamp-move event:', error);
+      }
+    });
+
     socketManager.addListener('stamp-remove', ({ userId, stampId }) => {
       if (userId !== socketManager.isConnected() && userId) {
         boardStore.removeStamp(stampId);
@@ -143,7 +153,7 @@ export const useSocket = () => {
   const cleanupBoardEventListeners = () => {
     const events = [
       'board-state', 'drawing-update', 'drawing-remove', 'player-move', 'player-state-change',
-      'stamp-add', 'stamp-remove', 'clear-board', 'user-joined', 'user-left',
+      'stamp-add', 'stamp-move', 'stamp-remove', 'clear-board', 'user-joined', 'user-left',
       'users-update', 'error'
     ];
     
@@ -225,6 +235,15 @@ export const useSocket = () => {
     }
   };
 
+  const emitStampMove = (stampId: string, position: any) => {
+    if (!socketManager.isConnected() || !roomId) return;
+    try {
+      socketManager.emit('stamp-move', { roomId, stampId, position });
+    } catch (error) {
+      console.error('Error emitting stamp-move:', error);
+    }
+  };
+
   const emitStampRemove = (stampId: string) => {
     if (socketManager.isConnected() && roomId) {
       socketManager.emit('stamp-remove', { roomId, stampId });
@@ -251,6 +270,7 @@ export const useSocket = () => {
     emitPlayerMove,
     emitPlayerStateChange,
     emitStampAdd,
+    emitStampMove,
     emitStampRemove,
     emitLayerChange,
     emitClearBoard
